@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MapTest - Додаток з Mapbox картою
 
-## Getting Started
+Це демонстраційний Next.js додаток, який показує, як інтегрувати інтерактивну карту Mapbox у ваш проект.
 
-First, run the development server:
+## 🚀 Швидкий старт
+
+### 1. Встановлення залежностей
+
+```bash
+npm install
+```
+
+### 2. Налаштування Mapbox Access Token
+
+1. Зареєструйтеся або увійдіть на [mapbox.com](https://www.mapbox.com/)
+2. Створіть новий проект і отримайте безкоштовний Access Token
+3. Створіть файл `.env.local` в корені проекту (якщо його ще немає)
+4. Додайте ваш токен:
+
+```env
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=ваш_токен_тут
+```
+
+### 3. Запуск додатку
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Відкрийте [http://localhost:3000](http://localhost:3000) у вашому браузері.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Структура проекту
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── layout.tsx          # Головний layout з навігацією
+│   ├── page.tsx            # Головна сторінка
+│   └── map/
+│       └── page.tsx        # Сторінка з картою
+└── components/
+    ├── MapBox.tsx          # Компонент Mapbox карти
+    └── Navigation.tsx      # Навігаційне меню
+```
 
-## Learn More
+## 🗺️ Функціональність
 
-To learn more about Next.js, take a look at the following resources:
+- **Інтерактивна карта**: Повноцінна Mapbox карта з можливістю навігації
+- **Responsive дизайн**: Адаптивний інтерфейс для різних пристроїв
+- **Контроли навігації**: Кнопки масштабування та обертання
+- **Відображення координат**: Реальний час координат та масштабу
+- **Маркер**: Маркер на початковій позиції (Київ)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Технології
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Next.js 15** - React framework
+- **TypeScript** - Статична типізація
+- **Tailwind CSS** - Стилізація
+- **Mapbox GL JS** - Інтерактивні карти
+- **React Map GL** - React wrapper для Mapbox
 
-## Deploy on Vercel
+## 📝 Кастомізація
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Зміна початкової позиції карти
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Відредагуйте файл `src/app/map/page.tsx`:
+
+```tsx
+<MapBox
+  initialLng={30.5234} // Довгота
+  initialLat={50.4501} // Широта
+  initialZoom={6} // Масштаб
+  style={{ width: "100%", height: "600px" }}
+/>
+```
+
+### Зміна стилю карти
+
+У файлі `src/components/MapBox.tsx` змініть параметр `style`:
+
+```tsx
+style: 'mapbox://styles/mapbox/satellite-v9', // Супутниковий вигляд
+// або
+style: 'mapbox://styles/mapbox/dark-v10',     // Темна тема
+```
+
+## 🔧 Розробка
+
+Проект створено з використанням:
+
+```bash
+npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
+```
+
+## 📄 Ліцензія
+
+MIT License
