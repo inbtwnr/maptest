@@ -141,8 +141,8 @@ const MapBox: React.FC<MapBoxProps> = ({
       if (point.image) {
         // Створюємо кастомний маркер з зображенням будівлі
         const container = document.createElement("div");
-        container.style.width = "96px";
-        container.style.height = "96px";
+        container.style.width = "160px";
+        container.style.height = "160px";
         container.style.display = "flex";
         container.style.alignItems = "center";
         container.style.justifyContent = "center";
