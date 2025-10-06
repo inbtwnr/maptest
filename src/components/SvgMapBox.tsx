@@ -398,10 +398,10 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                   {marker.image && (
                     <image
                       href={marker.image}
-                      x={marker.x - 30}
-                      y={marker.y - 70}
-                      width="60"
-                      height="60"
+                      x={marker.x - 90}
+                      y={marker.y - 170}
+                      width="180"
+                      height="180"
                       className="cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={(e) => handleMarkerClick(marker, e)}
                     />
