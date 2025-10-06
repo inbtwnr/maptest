@@ -423,7 +423,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
             toolbarProps={{ position: "none" }}
             detectAutoPan={false}
             scaleFactorOnWheel={1.1} // Збільшуємо швидкість zoom колесом миші
-            preventPanOutside={true} // Забороняємо переміщення за межі (додатково обмежуємо через constrainPan)
+            preventPanOutside={false} // Використовуємо власну функцію constrainPan замість вбудованого обмеження
             detectPinchGesture={true} // Жести для тачскрінів
           >
             <svg width={3039} height={2179} viewBox="0 0 3039 2179">
