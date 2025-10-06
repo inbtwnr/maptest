@@ -148,8 +148,8 @@ const MapBox: React.FC<MapBoxProps> = ({
         container.style.justifyContent = "center";
 
         const el = document.createElement("div");
-        el.style.width = "80px";
-        el.style.height = "80px";
+        el.style.width = "180px";
+        el.style.height = "180px";
         el.style.backgroundImage = `url(${point.image})`;
         el.style.backgroundSize = "contain";
         el.style.backgroundRepeat = "no-repeat";
