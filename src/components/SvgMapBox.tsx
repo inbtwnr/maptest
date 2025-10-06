@@ -64,7 +64,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
   const viewerRef = useRef<ReactSVGPanZoom>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [tool, setTool] = useState<Tool>(TOOL_NONE);
+  const [tool, setTool] = useState<Tool>(TOOL_PAN); // Перетягування за замовчуванням
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   // Початковий масштаб та центрування
@@ -222,9 +222,10 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
     setIsDrawerOpen(false);
   };
 
-  // Handle escape key
+  // Handle keyboard shortcuts
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Escape key
       if (event.key === "Escape") {
         if (isDrawerOpen) {
           setIsDrawerOpen(false);
@@ -232,11 +233,36 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
           setIsAddingMarker(false);
         }
       }
+
+      // Space key для швидкого перемикання на перетягування
+      if (event.code === "Space" && !isDrawerOpen && !isAddingMarker) {
+        event.preventDefault();
+        if (tool !== TOOL_PAN) {
+          setTool(TOOL_PAN);
+        }
+      }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isDrawerOpen, isAddingMarker]);
+    const handleKeyUp = (event: KeyboardEvent) => {
+      // Відпускання Space повертає попередній режим (але тільки якщо був не PAN)
+      if (
+        event.code === "Space" &&
+        tool === TOOL_PAN &&
+        !isDrawerOpen &&
+        !isAddingMarker
+      ) {
+        event.preventDefault();
+        // Можна залишити PAN або повернутися до NONE - залишимо PAN для зручності
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isDrawerOpen, isAddingMarker, tool]);
 
   // Handle responsive resizing
   useEffect(() => {
@@ -289,79 +315,125 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
     <>
       <div ref={containerRef} className={`${className} flex flex-col h-full`}>
         {/* Info panel */}
-        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-          <div className="text-sm text-gray-600 flex justify-between items-center">
-            <span>
-              Поточний інструмент:{" "}
-              {tool === TOOL_NONE
-                ? "Вибір"
-                : tool === TOOL_PAN
-                ? "🖱️ Перетягування"
-                : tool === TOOL_ZOOM_IN
-                ? "🔍+ Приближення"
-                : tool === TOOL_ZOOM_OUT
-                ? "🔍- Віддалення"
-                : "Невідомо"}
-              {value.mode === "panning" && (
-                <span className="ml-2 text-blue-600">
-                  • Активне переміщення
+        <div className="mb-4 p-4 bg-gradient-to-r from-gray-100 to-gray-50 rounded-lg shadow-sm border border-gray-200">
+          <div className="text-sm text-gray-600 flex justify-between items-center flex-wrap gap-2">
+            <div className="flex items-center gap-4">
+              <span className="font-semibold">
+                Режим:{" "}
+                <span
+                  className={
+                    tool === TOOL_PAN ? "text-blue-600" : "text-gray-800"
+                  }
+                >
+                  {tool === TOOL_NONE
+                    ? "👆 Вибір"
+                    : tool === TOOL_PAN
+                    ? "🖱️ Перетягування"
+                    : tool === TOOL_ZOOM_IN
+                    ? "🔍+ Приближення"
+                    : tool === TOOL_ZOOM_OUT
+                    ? "🔍- Віддалення"
+                    : "Невідомо"}
                 </span>
-              )}
-            </span>
-            <span>Міток: {markers.length}</span>
+                {value.mode === "panning" && (
+                  <span className="ml-2 text-blue-600 animate-pulse font-bold">
+                    • Переміщення...
+                  </span>
+                )}
+              </span>
+              <span className="text-gray-500">|</span>
+              <span>
+                Масштаб:{" "}
+                <span className="font-mono font-semibold">
+                  {(value.a * 100).toFixed(0)}%
+                </span>
+              </span>
+              <span className="text-gray-500">|</span>
+              <span>
+                Міток:{" "}
+                <span className="font-semibold text-blue-600">
+                  {markers.length}
+                </span>
+              </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              💡 Колесо миші - масштаб | Space - перетягування
+            </div>
           </div>
         </div>
 
         {/* Controls */}
         <div className="mb-4 flex gap-2 flex-wrap">
-          <button
-            onClick={enableNone}
-            className={`px-3 py-1 rounded text-sm ${
-              tool === TOOL_NONE
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-          >
-            Вибір
-          </button>
-          <button
-            onClick={enablePan}
-            className={`px-3 py-1 rounded text-sm ${
-              tool === TOOL_PAN
-                ? "bg-blue-600 text-white"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-          >
-            Перетягування
-          </button>
-          <button
-            onClick={zoomIn}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-          >
-            + Збільшити
-          </button>
-          <button
-            onClick={zoomOut}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-          >
-            - Зменшити
-          </button>
-          <button
-            onClick={centerView}
-            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-          >
-            🎯 Центр
-          </button>
-          <button
-            onClick={resetView}
-            className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
-          >
-            🔄 Скинути
-          </button>
+          <div className="flex gap-2 items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={enableNone}
+              className={`px-3 py-1 rounded text-sm transition-all ${
+                tool === TOOL_NONE
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-transparent hover:bg-gray-200"
+              }`}
+              title="Режим вибору міток"
+            >
+              👆 Вибір
+            </button>
+            <button
+              onClick={enablePan}
+              className={`px-3 py-1 rounded text-sm transition-all ${
+                tool === TOOL_PAN
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "bg-transparent hover:bg-gray-200"
+              }`}
+              title="Режим перетягування карти"
+            >
+              🖱️ Перетягування
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={zoomIn}
+              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors shadow-sm"
+              title="Збільшити масштаб"
+            >
+              🔍+ Збільшити
+            </button>
+            <button
+              onClick={zoomOut}
+              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors shadow-sm"
+              title="Зменшити масштаб"
+            >
+              🔍- Зменшити
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={centerView}
+              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm transition-colors shadow-sm"
+              title="Центрувати карту"
+            >
+              🎯 Центр
+            </button>
+            <button
+              onClick={resetView}
+              className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm transition-colors shadow-sm"
+              title="Повернутися до початкового вигляду"
+            >
+              🔄 Скинути
+            </button>
+          </div>
         </div>
 
         {/* SVG Pan Zoom Viewer */}
-        <div className="flex-1 w-full border-2 border-gray-300 rounded-lg overflow-hidden">
+        <div
+          className={`flex-1 w-full border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg svg-map-container ${
+            tool === TOOL_PAN && value.mode === "panning"
+              ? "panning"
+              : tool === TOOL_PAN
+              ? "pan-mode"
+              : ""
+          }`}
+        >
           <ReactSVGPanZoom
             ref={viewerRef}
             width={dimensions.width}
@@ -379,6 +451,8 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
             }}
             toolbarProps={{ position: "none" }}
             detectAutoPan={false}
+            scaleFactorOnWheel={1.1} // Збільшуємо швидкість zoom колесом миші
+            preventPanOutside={false} // Дозволяємо переміщення за межі
           >
             <svg width={3039} height={2179} viewBox="0 0 3039 2179">
               {/* Base SVG Map from file */}
