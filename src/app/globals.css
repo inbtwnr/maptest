@@ -197,14 +197,20 @@
 
   /* Стилі для SVG карти */
   .svg-map-container {
-    @apply cursor-default;
-  }
-
-  .svg-map-container.pan-mode {
     cursor: grab;
   }
 
   .svg-map-container.panning {
     cursor: grabbing;
+  }
+
+  /* Стилі для маркерів */
+  .svg-marker-group {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .svg-marker-element {
+    pointer-events: none;
   }
 }

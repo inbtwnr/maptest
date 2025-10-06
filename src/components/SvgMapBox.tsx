@@ -6,8 +6,6 @@ import {
   ReactSVGPanZoom,
   TOOL_NONE,
   TOOL_PAN,
-  TOOL_ZOOM_IN,
-  TOOL_ZOOM_OUT,
   Value,
   Tool,
 } from "react-svg-pan-zoom";
@@ -64,7 +62,8 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
   const viewerRef = useRef<ReactSVGPanZoom>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [tool, setTool] = useState<Tool>(TOOL_PAN); // Перетягування за замовчуванням
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [tool, setTool] = useState<Tool>(TOOL_PAN); // Перетягування за замовчуванням, маркери обробляються окремо
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   // Початковий масштаб та центрування
@@ -135,6 +134,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
   const handleMarkerClick = useCallback(
     async (marker: SvgMarker, e: React.MouseEvent) => {
       e.stopPropagation();
+      e.preventDefault();
       setSelectedMarker(marker);
       setIsDrawerOpen(true);
 
@@ -159,10 +159,6 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
     },
     []
   );
-
-  // Tool controls
-  const enablePan = () => setTool(TOOL_PAN);
-  const enableNone = () => setTool(TOOL_NONE);
 
   const zoomIn = () => {
     if (viewerRef.current) {
@@ -216,6 +212,48 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
     }
   };
 
+  // Функція для обмеження прокрутки межами карти
+  const constrainPan = useCallback((newValue: Value): Value => {
+    const scale = newValue.a;
+    const scaledWidth = svgWidth * scale;
+    const scaledHeight = svgHeight * scale;
+    const viewerWidth = newValue.viewerWidth;
+    const viewerHeight = newValue.viewerHeight;
+
+    // Обчислюємо мінімальні та максимальні значення для e та f
+    // e - горизонтальне зміщення (X)
+    // f - вертикальне зміщення (Y)
+
+    let constrainedE = newValue.e;
+    let constrainedF = newValue.f;
+
+    // Якщо карта більша за вьюпорт
+    if (scaledWidth > viewerWidth) {
+      // Обмежуємо так, щоб права межа карти не заходила лівіше правої межі вьюпорта
+      const maxE = 0;
+      // Обмежуємо так, щоб ліва межа карти не заходила правіше лівої межі вьюпорта
+      const minE = viewerWidth - scaledWidth;
+      constrainedE = Math.max(minE, Math.min(maxE, newValue.e));
+    } else {
+      // Якщо карта менша за вьюпорт, центруємо її
+      constrainedE = (viewerWidth - scaledWidth) / 2;
+    }
+
+    if (scaledHeight > viewerHeight) {
+      const maxF = 0;
+      const minF = viewerHeight - scaledHeight;
+      constrainedF = Math.max(minF, Math.min(maxF, newValue.f));
+    } else {
+      constrainedF = (viewerHeight - scaledHeight) / 2;
+    }
+
+    return {
+      ...newValue,
+      e: constrainedE,
+      f: constrainedF,
+    };
+  }, []);
+
   // Delete marker
   const deleteMarker = (markerId: string) => {
     setMarkers(markers.filter((m) => m.id !== markerId));
@@ -233,36 +271,13 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
           setIsAddingMarker(false);
         }
       }
-
-      // Space key для швидкого перемикання на перетягування
-      if (event.code === "Space" && !isDrawerOpen && !isAddingMarker) {
-        event.preventDefault();
-        if (tool !== TOOL_PAN) {
-          setTool(TOOL_PAN);
-        }
-      }
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      // Відпускання Space повертає попередній режим (але тільки якщо був не PAN)
-      if (
-        event.code === "Space" &&
-        tool === TOOL_PAN &&
-        !isDrawerOpen &&
-        !isAddingMarker
-      ) {
-        event.preventDefault();
-        // Можна залишити PAN або повернутися до NONE - залишимо PAN для зручності
-      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
     };
-  }, [isDrawerOpen, isAddingMarker, tool]);
+  }, [isDrawerOpen, isAddingMarker]);
 
   // Handle responsive resizing
   useEffect(() => {
@@ -319,22 +334,6 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
           <div className="text-sm text-gray-600 flex justify-between items-center flex-wrap gap-2">
             <div className="flex items-center gap-4">
               <span className="font-semibold">
-                Режим:{" "}
-                <span
-                  className={
-                    tool === TOOL_PAN ? "text-blue-600" : "text-gray-800"
-                  }
-                >
-                  {tool === TOOL_NONE
-                    ? "👆 Вибір"
-                    : tool === TOOL_PAN
-                    ? "🖱️ Перетягування"
-                    : tool === TOOL_ZOOM_IN
-                    ? "🔍+ Приближення"
-                    : tool === TOOL_ZOOM_OUT
-                    ? "🔍- Віддалення"
-                    : "Невідомо"}
-                </span>
                 {value.mode === "panning" && (
                   <span className="ml-2 text-blue-600 animate-pulse font-bold">
                     • Переміщення...
@@ -357,38 +356,14 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
               </span>
             </div>
             <div className="text-xs text-gray-500">
-              💡 Колесо миші - масштаб | Space - перетягування
+              💡 Колесо миші - масштаб | Клік по карті - перетягування | Клік по
+              мітці - інформація
             </div>
           </div>
         </div>
 
         {/* Controls */}
         <div className="mb-4 flex gap-2 flex-wrap">
-          <div className="flex gap-2 items-center bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={enableNone}
-              className={`px-3 py-1 rounded text-sm transition-all ${
-                tool === TOOL_NONE
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-transparent hover:bg-gray-200"
-              }`}
-              title="Режим вибору міток"
-            >
-              👆 Вибір
-            </button>
-            <button
-              onClick={enablePan}
-              className={`px-3 py-1 rounded text-sm transition-all ${
-                tool === TOOL_PAN
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-transparent hover:bg-gray-200"
-              }`}
-              title="Режим перетягування карти"
-            >
-              🖱️ Перетягування
-            </button>
-          </div>
-
           <div className="flex gap-2">
             <button
               onClick={zoomIn}
@@ -427,21 +402,17 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
         {/* SVG Pan Zoom Viewer */}
         <div
           className={`flex-1 w-full border-2 border-gray-300 rounded-lg overflow-hidden shadow-lg svg-map-container ${
-            tool === TOOL_PAN && value.mode === "panning"
-              ? "panning"
-              : tool === TOOL_PAN
-              ? "pan-mode"
-              : ""
+            value.mode === "panning" ? "panning" : ""
           }`}
         >
           <ReactSVGPanZoom
             ref={viewerRef}
             width={dimensions.width}
             height={dimensions.height}
-            tool={isAddingMarker ? TOOL_NONE : tool}
+            tool={isAddingMarker ? TOOL_NONE : TOOL_PAN}
             onChangeTool={setTool}
             value={value}
-            onChangeValue={setValue}
+            onChangeValue={(newValue) => setValue(constrainPan(newValue))}
             background="#f8f9fa"
             miniatureProps={{
               position: "right",
@@ -452,7 +423,8 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
             toolbarProps={{ position: "none" }}
             detectAutoPan={false}
             scaleFactorOnWheel={1.1} // Збільшуємо швидкість zoom колесом миші
-            preventPanOutside={false} // Дозволяємо переміщення за межі
+            preventPanOutside={true} // Забороняємо переміщення за межі (додатково обмежуємо через constrainPan)
+            detectPinchGesture={true} // Жести для тачскрінів
           >
             <svg width={3039} height={2179} viewBox="0 0 3039 2179">
               {/* Base SVG Map from file */}
@@ -467,7 +439,15 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
 
               {/* Markers */}
               {markers.map((marker) => (
-                <g key={marker.id}>
+                <g
+                  key={marker.id}
+                  className="svg-marker-group"
+                  onMouseDown={(e) => {
+                    // Prevent panning when clicking on marker
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => handleMarkerClick(marker, e)}
+                >
                   {/* Building image if available */}
                   {marker.image && (
                     <image
@@ -476,8 +456,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                       y={marker.y - 170}
                       width="180"
                       height="180"
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={(e) => handleMarkerClick(marker, e)}
+                      className="svg-marker-element hover:opacity-80 transition-opacity"
                     />
                   )}
                   {/* Marker pin */}
@@ -488,15 +467,14 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                     fill="#3B82F6"
                     stroke="#ffffff"
                     strokeWidth="2"
-                    className="cursor-pointer hover:fill-blue-700 transition-colors"
-                    onClick={(e) => handleMarkerClick(marker, e)}
+                    className="svg-marker-element hover:fill-blue-700 transition-colors"
                   />
                   {/* Marker label */}
                   <text
                     x={marker.x}
                     y={marker.y - 15}
                     textAnchor="middle"
-                    className="fill-gray-800 text-xs font-medium pointer-events-none select-none"
+                    className="svg-marker-element fill-gray-800 text-xs font-medium select-none"
                   >
                     {marker.title}
                   </text>
@@ -654,20 +632,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                 <span>ID мітки:</span>
                 <span className="font-mono">{selectedMarker?.id}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Поточний інструмент:</span>
-                <span>
-                  {tool === TOOL_NONE
-                    ? "Вибір"
-                    : tool === TOOL_PAN
-                    ? "Перетягування"
-                    : tool === TOOL_ZOOM_IN
-                    ? "Приближення"
-                    : tool === TOOL_ZOOM_OUT
-                    ? "Віддалення"
-                    : "Невідомо"}
-                </span>
-              </div>
+
               <div className="flex justify-between">
                 <span>Має контент:</span>
                 <span
