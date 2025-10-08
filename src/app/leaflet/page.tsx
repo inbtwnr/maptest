@@ -1,4 +1,15 @@
-import LeafletMapBox from "@/components/LeafletMapBox";
+"use client";
+
+import dynamic from "next/dynamic";
+
+const LeafletMapBox = dynamic(() => import("@/components/LeafletMapBox"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-lg shadow-lg w-full h-[calc(100vh-250px)] min-h-[500px] flex items-center justify-center bg-gray-100">
+      <div className="text-gray-500">Завантаження карти...</div>
+    </div>
+  ),
+});
 
 export default function LeafletPage() {
   return (
