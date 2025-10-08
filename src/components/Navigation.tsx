@@ -9,6 +9,7 @@ const Navigation = () => {
   const navItems = [
     { href: "/svg", label: "SVG Map" },
     { href: "/map", label: "Mapbox карта" },
+    { href: "/leaflet", label: "OpenStreetMap" },
   ];
 
   return (
