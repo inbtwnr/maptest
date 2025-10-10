@@ -13,7 +13,9 @@ import {
 import { loadPointContent } from "@/lib/contentLoader";
 import { hasContent } from "@/lib/contentMapping";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import L from "leaflet";
+import "@maplibre/maplibre-gl-leaflet";
 
 // Виправлення іконок для Leaflet
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -53,6 +55,7 @@ interface LeafletMapBoxProps {
   initialZoom?: number;
   className?: string;
   points?: MapPoint[];
+  useVectorTiles?: boolean; // Використовувати векторні тайли MapLibre замість растрових
 }
 
 // Компонент для відстеження подій карти
@@ -113,11 +116,288 @@ const MapController: React.FC<{
   return null;
 };
 
+// Компонент для додавання MapLibre GL векторного шару
+const MapLibreLayer: React.FC<{ useVectorTiles: boolean }> = ({
+  useVectorTiles,
+}) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!useVectorTiles) return;
+
+    const apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
+
+    // Додаємо MapLibre GL як векторний шар
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const maplibreLayer = (L as any).maplibreGL({
+      style: {
+        version: 8,
+        name: "Uzhhorod Custom",
+        glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+        sources: {
+          osm: {
+            type: "vector",
+            url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${apiKey}`,
+            minzoom: 0,
+            maxzoom: 14,
+          },
+        },
+        layers: [
+          // background
+          {
+            id: "background",
+            type: "background",
+            paint: { "background-color": "#EDEDED" },
+          },
+          // water
+          {
+            id: "water",
+            type: "fill",
+            source: "osm",
+            "source-layer": "water",
+            paint: { "fill-color": "#29626B" },
+          },
+          // park
+          {
+            id: "landuse-park",
+            type: "fill",
+            source: "osm",
+            "source-layer": "landuse",
+            filter: ["==", "class", "park"],
+            paint: { "fill-color": "#d6eadf" },
+          },
+          // buildings
+          {
+            id: "building",
+            type: "fill",
+            source: "osm",
+            "source-layer": "building",
+            paint: {
+              "fill-color": "#ffffff",
+              "fill-outline-color": "#d3d3d3",
+            },
+          },
+
+          // ---- ROADS ----
+          {
+            id: "road-motorway",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "motorway"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 6],
+            },
+          },
+          {
+            id: "road-primary",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "primary"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 16, 6],
+            },
+          },
+          {
+            id: "road-secondary",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "secondary"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                10,
+                0.8,
+                16,
+                4,
+              ],
+            },
+          },
+          {
+            id: "road-tertiary",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "tertiary"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                10,
+                0.8,
+                16,
+                4,
+              ],
+            },
+          },
+          {
+            id: "road-residential",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "residential"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                10,
+                0.5,
+                16,
+                2.5,
+              ],
+            },
+          },
+          {
+            id: "road-service",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "service"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                10,
+                0.4,
+                16,
+                1.5,
+              ],
+            },
+          },
+          {
+            id: "road-track",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "track"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                12,
+                0.4,
+                16,
+                1.5,
+              ],
+            },
+          },
+          {
+            id: "road-path",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "path"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-dasharray": [1, 1],
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                12,
+                0.3,
+                16,
+                1.2,
+              ],
+            },
+          },
+          {
+            id: "road-living-street",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "living_street"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                12,
+                0.6,
+                16,
+                2.5,
+              ],
+            },
+          },
+          {
+            id: "road-pedestrian",
+            type: "line",
+            source: "osm",
+            "source-layer": "transportation",
+            filter: ["==", "class", "pedestrian"],
+            paint: {
+              "line-color": "#B5B5B5",
+              "line-dasharray": [2, 1],
+              "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                12,
+                0.5,
+                16,
+                2,
+              ],
+            },
+          },
+
+          // labels
+          {
+            id: "place-labels",
+            type: "symbol",
+            source: "osm",
+            "source-layer": "place",
+            layout: {
+              "text-field": ["get", "name"],
+              "text-font": ["Open Sans Regular"],
+              "text-size": 12,
+            },
+            paint: {
+              "text-color": "#333333",
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 1,
+            },
+          },
+        ],
+      },
+      attribution:
+        '© <a href="https://www.maptiler.com/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    });
+
+    maplibreLayer.addTo(map);
+
+    // Очищення при демонтажі
+    return () => {
+      if (map.hasLayer(maplibreLayer)) {
+        map.removeLayer(maplibreLayer);
+      }
+    };
+  }, [map, useVectorTiles]);
+
+  return null;
+};
+
 const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   initialLng = 22.2908,
   initialLat = 48.6208,
   initialZoom = 13,
   className = "",
+  useVectorTiles = false,
   points = [
     {
       id: "4",
@@ -161,6 +441,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [dragEnabled, setDragEnabled] = useState(true);
   const [shouldCenter, setShouldCenter] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [vectorTilesEnabled, setVectorTilesEnabled] = useState(useVectorTiles);
 
   // Перевіряємо, чи ми на клієнті
   useEffect(() => {
@@ -249,6 +530,10 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setDragEnabled(!dragEnabled);
   };
 
+  const toggleVectorTiles = () => {
+    setVectorTilesEnabled(!vectorTilesEnabled);
+  };
+
   // Створюємо кастомні іконки для маркерів
   const createCustomIcon = (imageUrl: string) => {
     if (typeof window === "undefined") return undefined;
@@ -258,12 +543,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
       iconSize: [160, 160],
       iconAnchor: [80, 80],
     });
-  };
-
-  // Отримуємо стандартну іконку
-  const getDefaultIcon = () => {
-    if (typeof window === "undefined") return undefined;
-    return DefaultIcon;
   };
 
   return (
@@ -278,6 +557,21 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
               )}
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={toggleVectorTiles}
+                className={`px-3 py-1 rounded text-sm transition-colors ${
+                  vectorTilesEnabled
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "bg-gray-300 text-gray-700 hover:bg-gray-400"
+                }`}
+                title={
+                  vectorTilesEnabled
+                    ? "Перемкнутись на растрові тайли"
+                    : "Перемкнутись на векторні тайли"
+                }
+              >
+                {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
+              </button>
               <button
                 onClick={toggleDrag}
                 className={`px-3 py-1 rounded text-sm transition-colors ${
@@ -308,23 +602,32 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             center={[initialLat, initialLng]}
             zoom={initialZoom}
             scrollWheelZoom={true}
-            className="rounded-lg shadow-lg w-full h-[calc(100vh-250px)] min-h-[500px] grayscale-map"
+            className={`rounded-lg shadow-lg w-full h-[calc(100vh-250px)] min-h-[500px] ${
+              !vectorTilesEnabled ? "grayscale-map" : ""
+            }`}
             zoomControl={false}
           >
-            {/* Варіант 1: Чорно-білі тайли від Stamen */}
-            {/* <TileLayer
-              attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
-              url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
-              maxZoom={20}
-            /> */}
+            {/* Умовне відображення: векторні тайли або растрові */}
+            {vectorTilesEnabled ? (
+              <MapLibreLayer useVectorTiles={vectorTilesEnabled} />
+            ) : (
+              <>
+                {/* Варіант 1: Чорно-білі тайли від Stamen */}
+                {/* <TileLayer
+                  attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+                  url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
+                  maxZoom={20}
+                /> */}
 
-            {/* Варіант 2: Стандартні тайли з CSS фільтром grayscale */}
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-              className="grayscale-tiles"
-            />
+                {/* Варіант 2: Стандартні тайли з CSS фільтром grayscale */}
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maxZoom={19}
+                  className="grayscale-tiles"
+                />
+              </>
+            )}
 
             <ZoomControl position="topright" />
 

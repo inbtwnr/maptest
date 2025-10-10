@@ -23,14 +23,15 @@ export default function LeafletPage() {
         initialLat={48.6208}
         initialZoom={12}
         className="w-full"
+        useVectorTiles={true}
       />
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="font-semibold mb-2">🗺️ OpenStreetMap</h3>
+          <h3 className="font-semibold mb-2">🗺️ Векторна карта</h3>
           <p className="text-sm text-gray-600">
-            Відкрита карта світу, яка створюється спільнотою волонтерів.
-            Використовуйте мишу для переміщення.
+            MapLibre GL + OpenStreetMap векторні тайли для плавного
+            відображення. Перемикайте між вектором та растром.
           </p>
         </div>
 
@@ -47,6 +48,14 @@ export default function LeafletPage() {
           <p className="text-sm text-gray-600">
             Використовуйте кнопки керування для центрування карти та управління
             перетягуванням. Натисніть ESC для закриття панелі.
+          </p>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="font-semibold mb-2">🎨 Стилі</h3>
+          <p className="text-sm text-gray-600">
+            Кастомні стилі через osm-styles.json. Векторна карта швидша та
+            красивіша за растрову.
           </p>
         </div>
       </div>
