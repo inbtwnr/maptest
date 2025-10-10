@@ -116,6 +116,87 @@ const MapController: React.FC<{
   return null;
 };
 
+// Компонент для динамічного масштабування маркерів залежно від зуму
+const DynamicMarker: React.FC<{
+  point: MapPoint;
+  baseZoom: number;
+  onClick: (point: MapPoint) => void;
+}> = ({ point, baseZoom, onClick }) => {
+  const map = useMap();
+  const markerRef = React.useRef<L.Marker | null>(null);
+
+  // Функція для обчислення розміру маркера
+  const calculateIconSize = React.useCallback(
+    (currentZoom: number): number => {
+      // Базовий розмір маркера
+      const baseSize = 72;
+      // Базовий зум (той, на якому маркер має стандартний розмір)
+      const referenceZoom = baseZoom;
+
+      // Обчислюємо масштаб з експоненційним згладжуванням
+      // Використовуємо степінь 0.8 для більш плавного масштабування
+      const scale = Math.pow(currentZoom / referenceZoom, 0.99);
+
+      // Обмежуємо мінімальний та максимальний розмір
+      const minSize = 80; // Мінімальний розмір при малому зумі
+      const maxSize = 200; // Максимальний розмір при великому зумі
+
+      const calculatedSize = baseSize * scale;
+      return Math.max(minSize, Math.min(maxSize, calculatedSize));
+    },
+    [baseZoom]
+  );
+
+  // Створюємо початкову іконку
+  const createIcon = React.useCallback(
+    (zoom: number): L.DivIcon | L.Icon => {
+      const iconSize = calculateIconSize(zoom);
+
+      if (point.image) {
+        return L.divIcon({
+          html: `<div class="custom-marker" style="background-image: url(${point.image}); width: ${iconSize}px; height: ${iconSize}px;"></div>`,
+          className: "",
+          iconSize: [iconSize, iconSize],
+          iconAnchor: [iconSize / 2, iconSize / 2],
+        });
+      }
+      return DefaultIcon!;
+    },
+    [point.image, calculateIconSize]
+  );
+
+  const [markerIcon, setMarkerIcon] = useState<L.DivIcon | L.Icon>(() =>
+    createIcon(map.getZoom())
+  );
+
+  // Оновлюємо іконку при зміні зуму
+  useEffect(() => {
+    const updateIcon = () => {
+      const currentZoom = map.getZoom();
+      const newIcon = createIcon(currentZoom);
+      setMarkerIcon(newIcon);
+    };
+
+    // Слухаємо події зміни зуму
+    map.on("zoomend", updateIcon);
+
+    return () => {
+      map.off("zoomend", updateIcon);
+    };
+  }, [map, createIcon]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[point.lat, point.lng]}
+      icon={markerIcon}
+      eventHandlers={{
+        click: () => onClick(point),
+      }}
+    />
+  );
+};
+
 // Компонент для додавання MapLibre GL векторного шару
 const MapLibreLayer: React.FC<{ useVectorTiles: boolean }> = ({
   useVectorTiles,
@@ -453,13 +534,11 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     const style = document.createElement("style");
     style.textContent = `
       .custom-marker {
-        width: 160px;
-        height: 160px;
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
         cursor: pointer;
-        transition: transform 0.3s ease;
+        transition: transform 0.2s ease, width 0.3s ease, height 0.3s ease;
       }
       .custom-marker:hover {
         transform: scale(1.1);
@@ -534,66 +613,68 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setVectorTilesEnabled(!vectorTilesEnabled);
   };
 
-  // Створюємо кастомні іконки для маркерів
-  const createCustomIcon = (imageUrl: string) => {
-    if (typeof window === "undefined") return undefined;
-    return L.divIcon({
-      html: `<div class="custom-marker" style="background-image: url(${imageUrl});"></div>`,
-      className: "",
-      iconSize: [160, 160],
-      iconAnchor: [80, 80],
-    });
-  };
-
   return (
     <>
-      <div className={className}>
-        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-600">
-              Довгота: {lng} | Широта: {lat} | Масштаб: {zoom}
-              {isDragging && (
-                <span className="ml-2 text-blue-600">• Перетягування</span>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={toggleVectorTiles}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  vectorTilesEnabled
-                    ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-300 text-gray-700 hover:bg-gray-400"
-                }`}
-                title={
-                  vectorTilesEnabled
-                    ? "Перемкнутись на растрові тайли"
-                    : "Перемкнутись на векторні тайли"
-                }
-              >
-                {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
-              </button>
-              <button
-                onClick={toggleDrag}
-                className={`px-3 py-1 rounded text-sm transition-colors ${
-                  dragEnabled
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-gray-300 text-gray-700 hover:bg-gray-400"
-                }`}
-                title={
-                  dragEnabled
-                    ? "Вимкнути перетягування"
-                    : "Увімкнути перетягування"
-                }
-              >
-                {dragEnabled ? "🖱️ Перетягування" : "🔒 Заблоковано"}
-              </button>
-              <button
-                onClick={centerMap}
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
-                title="Центрувати карту"
-              >
-                🎯 Центр
-              </button>
+      <div
+        className={`relative flex flex-col h-[calc(100vh-4rem)] ${className}`}
+      >
+        {/* macOS-style Action Bar - floating with backdrop blur */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-5xl">
+          <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/20 p-3">
+            <div className="flex justify-between items-center gap-4">
+              {/* Координати та статус */}
+              <div className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                <span className="hidden sm:inline">
+                  Довгота: {lng} | Широта: {lat} |{" "}
+                </span>
+                <span>Масштаб: {zoom}</span>
+                {isDragging && (
+                  <span className="ml-2 text-blue-600 dark:text-blue-400">
+                    • Перетягування
+                  </span>
+                )}
+              </div>
+
+              {/* Кнопки керування */}
+              <div className="flex gap-2">
+                <button
+                  onClick={toggleVectorTiles}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
+                    vectorTilesEnabled
+                      ? "bg-purple-600 text-white hover:bg-purple-700 shadow-purple-500/30"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                  title={
+                    vectorTilesEnabled
+                      ? "Перемкнутись на растрові тайли"
+                      : "Перемкнутись на векторні тайли"
+                  }
+                >
+                  {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
+                </button>
+                <button
+                  onClick={toggleDrag}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
+                    dragEnabled
+                      ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                  title={
+                    dragEnabled
+                      ? "Вимкнути перетягування"
+                      : "Увімкнути перетягування"
+                  }
+                >
+                  {dragEnabled ? "🖱️ Перетягування" : "🔒 Заблоковано"}
+                </button>
+                <button
+                  onClick={centerMap}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-all shadow-sm shadow-green-500/30"
+                  title="Центрувати карту"
+                >
+                  🎯 Центр
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -602,7 +683,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             center={[initialLat, initialLng]}
             zoom={initialZoom}
             scrollWheelZoom={true}
-            className={`rounded-lg shadow-lg w-full h-[calc(100vh-250px)] min-h-[500px] ${
+            className={`flex-1 rounded-b-lg shadow-lg w-full ${
               !vectorTilesEnabled ? "grayscale-map" : ""
             }`}
             zoomControl={false}
@@ -632,13 +713,11 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             <ZoomControl position="topright" />
 
             {points.map((point) => (
-              <Marker
+              <DynamicMarker
                 key={point.id}
-                position={[point.lat, point.lng]}
-                icon={point.image ? createCustomIcon(point.image) : DefaultIcon}
-                eventHandlers={{
-                  click: () => handleMarkerClick(point),
-                }}
+                point={point}
+                baseZoom={initialZoom}
+                onClick={handleMarkerClick}
               />
             ))}
 
@@ -658,7 +737,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             />
           </MapContainer>
         ) : (
-          <div className="rounded-lg shadow-lg w-full h-[calc(100vh-250px)] min-h-[500px] flex items-center justify-center bg-gray-100">
+          <div className="flex-1 rounded-b-lg shadow-lg w-full flex items-center justify-center bg-gray-100">
             <div className="text-gray-500">Завантаження карти...</div>
           </div>
         )}
