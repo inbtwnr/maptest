@@ -137,7 +137,7 @@ const DynamicMarker: React.FC<{
   baseZoom,
   onClick,
   animationDuration = 0.2,
-  animateWhileZooming = false,
+  animateWhileZooming = true,
   minSize = 20,
   maxSize = 300,
   scaleFactor = 0.5,
@@ -693,34 +693,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                 >
                   {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
                 </button>
-                {/* <button
-                  onClick={toggleAnimateWhileZooming}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
-                    animateWhileZooming
-                      ? "bg-orange-600 text-white hover:bg-orange-700 shadow-orange-500/30"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  }`}
-                  title={
-                    animateWhileZooming
-                      ? "Анімувати тільки після зуму"
-                      : "Анімувати під час зуму"
-                  }
-                >
-                  {animateWhileZooming ? "⚡ Live" : "🎬 Delayed"}
-                </button> */}
-                {/* <button
-                  onClick={() =>
-                    setShowAnimationSettings(!showAnimationSettings)
-                  }
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
-                    showAnimationSettings
-                      ? "bg-yellow-600 text-white hover:bg-yellow-700 shadow-yellow-500/30"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  }`}
-                  title="Налаштування анімації міток"
-                >
-                  ⚙️ Анімація
-                </button> */}
                 <button
                   onClick={toggleDrag}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
@@ -765,6 +737,35 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
               </div>
 
               <div className="space-y-3">
+                {/* Перемикач анімації під час зуму */}
+                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex-1">
+                    <label className="text-xs font-semibold text-gray-900 dark:text-white block mb-1">
+                      🎬 Плавна анімація під час зуму
+                    </label>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {animateWhileZooming
+                        ? "Мітки масштабуються під час зуму (більш плавно)"
+                        : "Мітки змінюються після завершення зуму"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={toggleAnimateWhileZooming}
+                    aria-label="Перемкнути анімацію під час зуму"
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      animateWhileZooming
+                        ? "bg-blue-600"
+                        : "bg-gray-300 dark:bg-gray-600"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                        animateWhileZooming ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
                 {/* Тривалість анімації */}
                 <div>
                   <label className="flex justify-between items-center text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -889,6 +890,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                       onClick={() => {
                         setAnimationDuration(0);
                         setScaleFactor(0.5);
+                        setAnimateWhileZooming(false);
                       }}
                       className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
                     >
@@ -898,6 +900,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                       onClick={() => {
                         setAnimationDuration(0.15);
                         setScaleFactor(0.5);
+                        setAnimateWhileZooming(true);
                       }}
                       className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                     >
@@ -907,6 +910,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                       onClick={() => {
                         setAnimationDuration(0.3);
                         setScaleFactor(0.4);
+                        setAnimateWhileZooming(true);
                       }}
                       className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                     >
@@ -916,6 +920,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                       onClick={() => {
                         setAnimationDuration(0.5);
                         setScaleFactor(0.3);
+                        setAnimateWhileZooming(true);
                       }}
                       className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
                     >

@@ -23,6 +23,7 @@ export default function LeafletPage() {
       initialLat={48.6208}
       initialZoom={12}
       useVectorTiles={true}
+      markerAnimateWhileZooming={true}
     />
   );
 }
