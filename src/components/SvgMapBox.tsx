@@ -10,7 +10,6 @@ import {
   Tool,
 } from "react-svg-pan-zoom";
 import { loadPointContent } from "@/lib/contentLoader";
-import { hasContent } from "@/lib/contentMapping";
 
 interface SvgMarker {
   id: string;
@@ -20,6 +19,7 @@ interface SvgMarker {
   description?: string;
   address?: string;
   image?: string;
+  contentFile?: string;
 }
 
 interface SvgMapBoxProps {
@@ -139,7 +139,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
       setIsDrawerOpen(true);
 
       // Load content for marker if it exists
-      if (hasContent(marker.id)) {
+      if (marker.contentFile) {
         setIsContentLoading(true);
         setMarkerContent(null);
 
@@ -637,19 +637,19 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                 <span>Має контент:</span>
                 <span
                   className={
-                    hasContent(selectedMarker?.id || "")
+                    selectedMarker?.contentFile
                       ? "text-green-600"
                       : "text-gray-400"
                   }
                 >
-                  {hasContent(selectedMarker?.id || "") ? "Так" : "Ні"}
+                  {selectedMarker?.contentFile ? "Так" : "Ні"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Content section */}
-          {hasContent(selectedMarker?.id || "") && (
+          {selectedMarker?.contentFile && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 <svg

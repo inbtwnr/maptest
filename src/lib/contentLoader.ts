@@ -12,7 +12,7 @@ const contentCache = new Map<string, string>();
 export async function loadPointContent(
   pointId: string
 ): Promise<string | null> {
-  const contentPath = getContentPath(pointId);
+  const contentPath = await getContentPath(pointId);
 
   if (!contentPath) {
     console.warn(`Контент для точки ${pointId} не знайдено`);

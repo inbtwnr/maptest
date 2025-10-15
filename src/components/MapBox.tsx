@@ -5,21 +5,11 @@ import Image from "next/image";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { loadPointContent } from "@/lib/contentLoader";
-import { hasContent } from "@/lib/contentMapping";
+import { loadPointsData, type MapPoint } from "@/lib/contentMapping";
 // Видаляємо імпорт drawer, створимо власну бокову панель
 
 // Отримуємо токен із змінних середовища
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-interface MapPoint {
-  id: string;
-  lng: number;
-  lat: number;
-  title: string;
-  description?: string;
-  address?: string;
-  image?: string; // Додаємо поле для зображення будівлі
-}
 
 interface MapBoxProps {
   initialLng?: number;
@@ -34,40 +24,11 @@ const MapBox: React.FC<MapBoxProps> = ({
   initialLat = 48.6208,
   initialZoom = 13,
   className = "",
-  points = [
-    {
-      id: "4",
-      lng: 22.287,
-      lat: 48.6257,
-      title: "Ректорат УжНУ",
-      description:
-        "Центральна будівля Ужгородського національного університету",
-      address: "пл. Народна, 3, Ужгород",
-      image: "/rectorat.svg",
-    },
-    {
-      id: "5",
-      lng: 22.290587451062997,
-      lat: 48.6355801634869,
-      title: "Головна будівля УжНУ на Бамі",
-      description: "Навчальний корпус УжНУ на Бульварі Академіка Мірослава",
-      address: "бул. Академіка Мірослава, Ужгород",
-      image: "/bam.svg",
-    },
-    {
-      id: "6",
-      lng: 22.30318262328638,
-      lat: 48.620723761307296,
-      title: "Фізичний факультет УжНУ",
-      description:
-        "Фізичний факультет Ужгородського національного університету",
-      address: "вул. Волошина, 54, Ужгород",
-      image: "/fizfac.svg",
-    },
-  ],
+  points: propsPoints,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const [points, setPoints] = useState<MapPoint[]>(propsPoints || []);
   const [lng, setLng] = useState(initialLng);
   const [lat, setLat] = useState(initialLat);
   const [zoom, setZoom] = useState(initialZoom);
@@ -77,6 +38,17 @@ const MapBox: React.FC<MapBoxProps> = ({
   const [isContentLoading, setIsContentLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragEnabled, setDragEnabled] = useState(true);
+
+  // Завантаження точок з JSON якщо вони не передані через пропси
+  useEffect(() => {
+    const fetchPoints = async () => {
+      if (!propsPoints || propsPoints.length === 0) {
+        const data = await loadPointsData();
+        setPoints(data.points);
+      }
+    };
+    fetchPoints();
+  }, [propsPoints]);
 
   useEffect(() => {
     if (map.current) return; // Ініціалізувати карту тільки один раз
@@ -190,7 +162,7 @@ const MapBox: React.FC<MapBoxProps> = ({
         setIsDrawerOpen(true);
 
         // Завантажуємо контент для точки якщо він є
-        if (hasContent(point.id)) {
+        if (point.contentFile) {
           setIsContentLoading(true);
           setPointContent(null);
 
@@ -419,19 +391,19 @@ const MapBox: React.FC<MapBoxProps> = ({
                 <span>Має контент:</span>
                 <span
                   className={
-                    hasContent(selectedPoint?.id || "")
+                    selectedPoint?.contentFile
                       ? "text-green-600"
                       : "text-gray-400"
                   }
                 >
-                  {hasContent(selectedPoint?.id || "") ? "Так" : "Ні"}
+                  {selectedPoint?.contentFile ? "Так" : "Ні"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Секція з MD контентом */}
-          {hasContent(selectedPoint?.id || "") && (
+          {selectedPoint?.contentFile && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 <svg

@@ -11,21 +11,11 @@ import {
   useMap,
 } from "react-leaflet";
 import { loadPointContent } from "@/lib/contentLoader";
-import { hasContent } from "@/lib/contentMapping";
+import { loadPointsData, type MapPoint } from "@/lib/contentMapping";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import L from "leaflet";
 import "@maplibre/maplibre-gl-leaflet";
-
-interface MapPoint {
-  id: string;
-  lng: number;
-  lat: number;
-  title: string;
-  description?: string;
-  address?: string;
-  image?: string;
-}
 
 interface LeafletMapBoxProps {
   initialLng?: number;
@@ -491,38 +481,9 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   markerMinSize = 20,
   markerMaxSize = 300,
   markerScaleFactor = 0.5,
-  points = [
-    {
-      id: "4",
-      lng: 22.287,
-      lat: 48.6257,
-      title: "Ректорат УжНУ",
-      description:
-        "Центральна будівля Ужгородського національного університету",
-      address: "пл. Народна, 3, Ужгород",
-      image: "/rectorat.svg",
-    },
-    {
-      id: "5",
-      lng: 22.290587451062997,
-      lat: 48.6355801634869,
-      title: "Головна будівля УжНУ на Бамі",
-      description: "Навчальний корпус УжНУ на Бульварі Академіка Мірослава",
-      address: "бул. Академіка Мірослава, Ужгород",
-      image: "/bam.svg",
-    },
-    {
-      id: "6",
-      lng: 22.30318262328638,
-      lat: 48.620723761307296,
-      title: "Фізичний факультет УжНУ",
-      description:
-        "Фізичний факультет Ужгородського національного університету",
-      address: "вул. Волошина, 54, Ужгород",
-      image: "/fizfac.svg",
-    },
-  ],
+  points: propsPoints,
 }) => {
+  const [points, setPoints] = useState<MapPoint[]>(propsPoints || []);
   const [lng, setLng] = useState(initialLng);
   const [lat, setLat] = useState(initialLat);
   const [zoom, setZoom] = useState(initialZoom);
@@ -534,6 +495,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [dragEnabled, setDragEnabled] = useState(true);
   const [shouldCenter, setShouldCenter] = useState(false);
   const [vectorTilesEnabled, setVectorTilesEnabled] = useState(useVectorTiles);
+  const [isBuildingsMenuOpen, setIsBuildingsMenuOpen] = useState(false);
 
   // Стани для контролю анімації міток
   const [animationDuration, setAnimationDuration] = useState(
@@ -545,6 +507,17 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [minSize, setMinSize] = useState(markerMinSize);
   const [maxSize, setMaxSize] = useState(markerMaxSize);
   const [scaleFactor, setScaleFactor] = useState(markerScaleFactor);
+
+  // Завантаження точок з JSON якщо вони не передані через пропси
+  useEffect(() => {
+    const fetchPoints = async () => {
+      if (!propsPoints || propsPoints.length === 0) {
+        const data = await loadPointsData();
+        setPoints(data.points);
+      }
+    };
+    fetchPoints();
+  }, [propsPoints]);
 
   // Додаємо CSS для анімації маркера та сірої карти
   useEffect(() => {
@@ -595,7 +568,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setSelectedPoint(point);
     setIsDrawerOpen(true);
 
-    if (hasContent(point.id)) {
+    if (point.contentFile) {
       setIsContentLoading(true);
       setPointContent(null);
 
@@ -630,6 +603,15 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setAnimateWhileZooming(!animateWhileZooming);
   };
 
+  const focusOnBuilding = (point: MapPoint) => {
+    setLng(point.lng);
+    setLat(point.lat);
+    setZoom(17); // Збільшуємо масштаб для детального перегляду
+    setShouldCenter(true);
+    handleMarkerClick(point); // Відкриваємо бокову панель з інформацією
+    setIsBuildingsMenuOpen(false); // Закриваємо меню будівель на мобільних
+  };
+
   const [showAnimationSettings, setShowAnimationSettings] = useState(false);
 
   return (
@@ -637,6 +619,124 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
       <div
         className={`relative flex flex-col h-[calc(100vh-4rem)] ${className}`}
       >
+        {/* Кнопка бургер-меню для мобільних пристроїв */}
+        <button
+          onClick={() => setIsBuildingsMenuOpen(!isBuildingsMenuOpen)}
+          className="md:hidden fixed top-20 left-4 z-[1002] p-3 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Відкрити меню будівель"
+        >
+          <svg
+            className="w-6 h-6 text-gray-700 dark:text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            {isBuildingsMenuOpen ? (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            ) : (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            )}
+          </svg>
+        </button>
+
+        {/* Панель швидкого доступу до будівель */}
+        <div
+          className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200 dark:border-gray-700 z-[1001] transform transition-transform duration-300 ease-in-out overflow-hidden ${
+            isBuildingsMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }`}
+        >
+          <div className="h-full flex flex-col">
+            {/* Заголовок панелі */}
+            <div className="p-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm6 6H7v2h6v-2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Будівлі
+              </h2>
+            </div>
+
+            {/* Список будівель з прокруткою */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {points.map((point) => (
+                <button
+                  key={point.id}
+                  onClick={() => focusOnBuilding(point)}
+                  className="w-full text-left bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-200 overflow-hidden group hover:border-blue-500 dark:hover:border-blue-400"
+                >
+                  {/* Зображення будівлі */}
+                  {point.image && (
+                    <div className="relative h-32 bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                      <Image
+                        src={point.image}
+                        alt={point.title}
+                        fill
+                        className="bject-scale-down transition-transform duration-300 group-hover:scale-110"
+                      />
+                    </div>
+                  )}
+
+                  {/* Інформація про будівлю */}
+                  <div className="p-3">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {point.title}
+                    </h3>
+                    {point.description && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                        {point.description}
+                      </p>
+                    )}
+                    {point.address && (
+                      <p className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
+                        <svg
+                          className="w-3 h-3 mr-1"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span className="line-clamp-1">{point.address}</span>
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Overlay для закриття меню на мобільних */}
+        {isBuildingsMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/30 z-[1000]"
+            onClick={() => setIsBuildingsMenuOpen(false)}
+          />
+        )}
+
         {/* macOS-style Action Bar - floating with backdrop blur */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-5xl">
           <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/20 p-3">
@@ -966,9 +1066,9 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
           <MapController
             dragEnabled={dragEnabled}
-            centerLat={initialLat}
-            centerLng={initialLng}
-            centerZoom={initialZoom}
+            centerLat={lat}
+            centerLng={lng}
+            centerZoom={zoom}
             shouldCenter={shouldCenter}
             onCenterComplete={() => setShouldCenter(false)}
           />
@@ -1100,19 +1200,19 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                 <span>Має контент:</span>
                 <span
                   className={
-                    hasContent(selectedPoint?.id || "")
+                    selectedPoint?.contentFile
                       ? "text-green-600"
                       : "text-gray-400"
                   }
                 >
-                  {hasContent(selectedPoint?.id || "") ? "Так" : "Ні"}
+                  {selectedPoint?.contentFile ? "Так" : "Ні"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Секція з MD контентом */}
-          {hasContent(selectedPoint?.id || "") && (
+          {selectedPoint?.contentFile && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 <svg
