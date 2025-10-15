@@ -17,28 +17,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import L from "leaflet";
 import "@maplibre/maplibre-gl-leaflet";
 
-// Виправлення іконок для Leaflet
-import icon from "leaflet/dist/images/marker-icon.png";
-import iconShadow from "leaflet/dist/images/marker-shadow.png";
-import iconRetina from "leaflet/dist/images/marker-icon-2x.png";
-
-// Налаштування стандартних іконок Leaflet
-let DefaultIcon: L.Icon | undefined;
-
-if (typeof window !== "undefined") {
-  DefaultIcon = L.icon({
-    iconUrl: icon.src,
-    iconRetinaUrl: iconRetina.src,
-    shadowUrl: iconShadow.src,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
-
-  L.Marker.prototype.options.icon = DefaultIcon;
-}
-
 interface MapPoint {
   id: string;
   lng: number;
@@ -167,7 +145,7 @@ const DynamicMarker: React.FC<{
 
   // Створюємо початкову іконку
   const createIcon = React.useCallback(
-    (zoom: number): L.DivIcon | L.Icon => {
+    (zoom: number): L.DivIcon => {
       const iconSize = calculateIconSize(zoom);
 
       if (point.image) {
@@ -179,12 +157,18 @@ const DynamicMarker: React.FC<{
           iconAnchor: [iconSize / 2, iconSize / 2],
         });
       }
-      return DefaultIcon!;
+      // Повертаємо простий div icon як fallback
+      return L.divIcon({
+        html: `<div style="width: ${iconSize}px; height: ${iconSize}px; background: #3B82F6; border-radius: 50%; border: 2px solid white;"></div>`,
+        className: "",
+        iconSize: [iconSize, iconSize],
+        iconAnchor: [iconSize / 2, iconSize / 2],
+      });
     },
     [point.image, calculateIconSize, animationDuration]
   );
 
-  const [markerIcon, setMarkerIcon] = useState<L.DivIcon | L.Icon>(() =>
+  const [markerIcon, setMarkerIcon] = useState<L.DivIcon>(() =>
     createIcon(map.getZoom())
   );
 
@@ -549,7 +533,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragEnabled, setDragEnabled] = useState(true);
   const [shouldCenter, setShouldCenter] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const [vectorTilesEnabled, setVectorTilesEnabled] = useState(useVectorTiles);
 
   // Стани для контролю анімації міток
@@ -562,11 +545,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [minSize, setMinSize] = useState(markerMinSize);
   const [maxSize, setMaxSize] = useState(markerMaxSize);
   const [scaleFactor, setScaleFactor] = useState(markerScaleFactor);
-
-  // Перевіряємо, чи ми на клієнті
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Додаємо CSS для анімації маркера та сірої карти
   useEffect(() => {
@@ -933,75 +911,69 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
           </div>
         )}
 
-        {isClient ? (
-          <MapContainer
-            center={[initialLat, initialLng]}
-            zoom={initialZoom}
-            scrollWheelZoom={true}
-            className={`flex-1 rounded-b-lg shadow-lg w-full ${
-              !vectorTilesEnabled ? "grayscale-map" : ""
-            }`}
-            zoomControl={false}
-          >
-            {/* Умовне відображення: векторні тайли або растрові */}
-            {vectorTilesEnabled ? (
-              <MapLibreLayer useVectorTiles={vectorTilesEnabled} />
-            ) : (
-              <>
-                {/* Варіант 1: Чорно-білі тайли від Stamen */}
-                {/* <TileLayer
+        <MapContainer
+          center={[initialLat, initialLng]}
+          zoom={initialZoom}
+          scrollWheelZoom={true}
+          className={`flex-1 rounded-b-lg shadow-lg w-full ${
+            !vectorTilesEnabled ? "grayscale-map" : ""
+          }`}
+          zoomControl={false}
+        >
+          {/* Умовне відображення: векторні тайли або растрові */}
+          {vectorTilesEnabled ? (
+            <MapLibreLayer useVectorTiles={vectorTilesEnabled} />
+          ) : (
+            <>
+              {/* Варіант 1: Чорно-білі тайли від Stamen */}
+              {/* <TileLayer
                   attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
                   url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
                   maxZoom={20}
                 /> */}
 
-                {/* Варіант 2: Стандартні тайли з CSS фільтром grayscale */}
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  maxZoom={19}
-                  className="grayscale-tiles"
-                />
-              </>
-            )}
-
-            <ZoomControl position="topright" />
-
-            {points.map((point) => (
-              <DynamicMarker
-                key={point.id}
-                point={point}
-                baseZoom={initialZoom}
-                onClick={handleMarkerClick}
-                animationDuration={animationDuration}
-                animateWhileZooming={animateWhileZooming}
-                minSize={minSize}
-                maxSize={maxSize}
-                scaleFactor={scaleFactor}
+              {/* Варіант 2: Стандартні тайли з CSS фільтром grayscale */}
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxZoom={19}
+                className="grayscale-tiles"
               />
-            ))}
+            </>
+          )}
 
-            <MapEventHandler
-              onMove={handleMapMove}
-              onDragStart={() => setIsDragging(true)}
-              onDragEnd={() => setIsDragging(false)}
-            />
+          <ZoomControl position="topright" />
 
-            <MapController
-              dragEnabled={dragEnabled}
-              centerLat={initialLat}
-              centerLng={initialLng}
-              centerZoom={initialZoom}
-              shouldCenter={shouldCenter}
-              onCenterComplete={() => setShouldCenter(false)}
+          {points.map((point) => (
+            <DynamicMarker
+              key={point.id}
+              point={point}
+              baseZoom={initialZoom}
+              onClick={handleMarkerClick}
+              animationDuration={animationDuration}
+              animateWhileZooming={animateWhileZooming}
+              minSize={minSize}
+              maxSize={maxSize}
+              scaleFactor={scaleFactor}
             />
-          </MapContainer>
-        ) : (
-          <div className="flex-1 rounded-b-lg shadow-lg w-full flex items-center justify-center bg-gray-100">
-            <div className="text-gray-500">Завантаження карти...</div>
-          </div>
-        )}
-      </div>{" "}
+          ))}
+
+          <MapEventHandler
+            onMove={handleMapMove}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={() => setIsDragging(false)}
+          />
+
+          <MapController
+            dragEnabled={dragEnabled}
+            centerLat={initialLat}
+            centerLng={initialLng}
+            centerZoom={initialZoom}
+            shouldCenter={shouldCenter}
+            onCenterComplete={() => setShouldCenter(false)}
+          />
+        </MapContainer>
+      </div>
       {/* Бокова панель (sidebar) */}
       <div
         className={`fixed top-0 right-0 h-full w-full md:w-1/2 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-[10000] ${

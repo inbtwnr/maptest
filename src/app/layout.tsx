@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MapTest - Mapbox карта",
-  description: "Демонстрація Mapbox карти в Next.js",
+  title: "Ужгородський університет карта",
+  description: "Демонстрація об'єктів ужгородського університету",
 };
 
 export default function RootLayout({
