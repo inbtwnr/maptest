@@ -483,7 +483,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   markerScaleFactor = 0.5,
   points: propsPoints,
 }) => {
-  const [points, setPoints] = useState<MapPoint[]>(propsPoints || []);
+  const [points, setPoints] = useState<MapPoint[]>([]);
   const [lng, setLng] = useState(initialLng);
   const [lat, setLat] = useState(initialLat);
   const [zoom, setZoom] = useState(initialZoom);
@@ -491,35 +491,53 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [pointContent, setPointContent] = useState<string | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragEnabled, setDragEnabled] = useState(true);
+  const dragEnabled = true; // Завжди дозволяємо перетягування
   const [shouldCenter, setShouldCenter] = useState(false);
   const [vectorTilesEnabled, setVectorTilesEnabled] = useState(useVectorTiles);
   const [isBuildingsMenuOpen, setIsBuildingsMenuOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   // Стани для контролю анімації міток
-  const [animationDuration, setAnimationDuration] = useState(
-    markerAnimationDuration
-  );
-  const [animateWhileZooming, setAnimateWhileZooming] = useState(
-    markerAnimateWhileZooming
-  );
-  const [minSize, setMinSize] = useState(markerMinSize);
-  const [maxSize, setMaxSize] = useState(markerMaxSize);
-  const [scaleFactor, setScaleFactor] = useState(markerScaleFactor);
+  const animationDuration = markerAnimationDuration;
+  const animateWhileZooming = markerAnimateWhileZooming;
+  const minSize = markerMinSize;
+  const maxSize = markerMaxSize;
+  const scaleFactor = markerScaleFactor;
+
+  // Перевірка що код виконується на клієнті
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Завантаження точок з JSON якщо вони не передані через пропси
   useEffect(() => {
     const fetchPoints = async () => {
-      if (!propsPoints || propsPoints.length === 0) {
+      if (propsPoints && propsPoints.length > 0) {
+        // Перевіряємо унікальність ID
+        const uniquePoints = Array.from(
+          new Map(propsPoints.map((p) => [p.id, p])).values()
+        );
+        if (uniquePoints.length !== propsPoints.length) {
+          console.warn("Виявлено дублікати ID в точках:", propsPoints);
+        }
+        setPoints(uniquePoints);
+      } else {
         const data = await loadPointsData();
-        setPoints(data.points);
+        // Перевіряємо унікальність ID
+        const uniquePoints = Array.from(
+          new Map(data.points.map((p) => [p.id, p])).values()
+        );
+        if (uniquePoints.length !== data.points.length) {
+          console.warn("Виявлено дублікати ID в точках:", data.points);
+        }
+        setPoints(uniquePoints);
       }
     };
-    fetchPoints();
-  }, [propsPoints]);
 
-  // Додаємо CSS для анімації маркера та сірої карти
+    if (isClient) {
+      fetchPoints();
+    }
+  }, [propsPoints, isClient]); // Додаємо CSS для анімації маркера та сірої карти
   useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
@@ -591,16 +609,8 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setShouldCenter(true);
   };
 
-  const toggleDrag = () => {
-    setDragEnabled(!dragEnabled);
-  };
-
   const toggleVectorTiles = () => {
     setVectorTilesEnabled(!vectorTilesEnabled);
-  };
-
-  const toggleAnimateWhileZooming = () => {
-    setAnimateWhileZooming(!animateWhileZooming);
   };
 
   const focusOnBuilding = (point: MapPoint) => {
@@ -612,7 +622,16 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setIsBuildingsMenuOpen(false); // Закриваємо меню будівель на мобільних
   };
 
-  const [showAnimationSettings, setShowAnimationSettings] = useState(false);
+  // Не рендеримо карту до завантаження на клієнті
+  if (!isClient) {
+    return (
+      <div
+        className={`relative flex flex-col h-[calc(100vh-4rem)] ${className} items-center justify-center bg-gray-100`}
+      >
+        <div className="text-gray-500">Завантаження карти...</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -678,9 +697,9 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
             {/* Список будівель з прокруткою */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {points.map((point) => (
+              {points.map((point, index) => (
                 <button
-                  key={point.id}
+                  key={`building-${point.id}-${index}`}
                   onClick={() => focusOnBuilding(point)}
                   className="w-full text-left bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md border border-gray-200 dark:border-gray-700 transition-all duration-200 overflow-hidden group hover:border-blue-500 dark:hover:border-blue-400"
                 >
@@ -747,11 +766,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                   Довгота: {lng} | Широта: {lat} |{" "}
                 </span>
                 <span>Масштаб: {zoom}</span>
-                {isDragging && (
-                  <span className="ml-2 text-blue-600 dark:text-blue-400">
-                    • Перетягування
-                  </span>
-                )}
               </div>
 
               {/* Кнопки керування */}
@@ -760,7 +774,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                   onClick={toggleVectorTiles}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
                     vectorTilesEnabled
-                      ? "bg-purple-600 text-white hover:bg-purple-700 shadow-purple-500/30"
+                      ? "bg-black text-white hover:bg-slate-700 shadow-purple-500/30"
                       : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                   }`}
                   title={
@@ -772,23 +786,8 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                   {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
                 </button>
                 <button
-                  onClick={toggleDrag}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
-                    dragEnabled
-                      ? "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                  }`}
-                  title={
-                    dragEnabled
-                      ? "Вимкнути перетягування"
-                      : "Увімкнути перетягування"
-                  }
-                >
-                  {dragEnabled ? "🖱️ Перетягування" : "🔒 Заблоковано"}
-                </button>
-                <button
                   onClick={centerMap}
-                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-all shadow-sm shadow-green-500/30"
+                  className="px-3 py-1.5 bg-black text-white rounded-lg text-xs font-medium hover:bg-slate-700 transition-all shadow-sm shadow-green-500/30"
                   title="Центрувати карту"
                 >
                   🎯 Центр
@@ -797,220 +796,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Панель налаштувань анімації */}
-        {showAnimationSettings && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] w-[calc(100%-2rem)] max-w-2xl">
-            <div className="backdrop-blur-xl bg-white/90 dark:bg-gray-900/90 rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/20 p-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                  ⚙️ Налаштування анімації міток
-                </h3>
-                <button
-                  onClick={() => setShowAnimationSettings(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {/* Перемикач анімації під час зуму */}
-                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="flex-1">
-                    <label className="text-xs font-semibold text-gray-900 dark:text-white block mb-1">
-                      🎬 Плавна анімація під час зуму
-                    </label>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {animateWhileZooming
-                        ? "Мітки масштабуються під час зуму (більш плавно)"
-                        : "Мітки змінюються після завершення зуму"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={toggleAnimateWhileZooming}
-                    aria-label="Перемкнути анімацію під час зуму"
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                      animateWhileZooming
-                        ? "bg-blue-600"
-                        : "bg-gray-300 dark:bg-gray-600"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                        animateWhileZooming ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Тривалість анімації */}
-                <div>
-                  <label className="flex justify-between items-center text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <span>
-                      Тривалість анімації: {animationDuration.toFixed(2)}с
-                    </span>
-                    <button
-                      onClick={() => setAnimationDuration(0.2)}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Скинути
-                    </button>
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={animationDuration}
-                    onChange={(e) =>
-                      setAnimationDuration(parseFloat(e.target.value))
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                    aria-label="Тривалість анімації"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Миттєво (0с)</span>
-                    <span>Повільно (1с)</span>
-                  </div>
-                </div>
-
-                {/* Коефіцієнт масштабування */}
-                <div>
-                  <label className="flex justify-between items-center text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <span>
-                      Швидкість зміни розміру: {scaleFactor.toFixed(2)}
-                    </span>
-                    <button
-                      onClick={() => setScaleFactor(0.5)}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Скинути
-                    </button>
-                  </label>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1"
-                    step="0.05"
-                    value={scaleFactor}
-                    onChange={(e) => setScaleFactor(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                    aria-label="Швидкість зміни розміру"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>Повільно (0.1)</span>
-                    <span>Швидко (1.0)</span>
-                  </div>
-                </div>
-
-                {/* Мінімальний розмір */}
-                <div>
-                  <label className="flex justify-between items-center text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <span>Мінімальний розмір: {minSize}px</span>
-                    <button
-                      onClick={() => setMinSize(20)}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Скинути
-                    </button>
-                  </label>
-                  <input
-                    type="range"
-                    min="10"
-                    max="100"
-                    step="5"
-                    value={minSize}
-                    onChange={(e) => setMinSize(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                    aria-label="Мінімальний розмір маркера"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>10px</span>
-                    <span>100px</span>
-                  </div>
-                </div>
-
-                {/* Максимальний розмір */}
-                <div>
-                  <label className="flex justify-between items-center text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    <span>Максимальний розмір: {maxSize}px</span>
-                    <button
-                      onClick={() => setMaxSize(300)}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Скинути
-                    </button>
-                  </label>
-                  <input
-                    type="range"
-                    min="100"
-                    max="500"
-                    step="10"
-                    value={maxSize}
-                    onChange={(e) => setMaxSize(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
-                    aria-label="Максимальний розмір маркера"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>100px</span>
-                    <span>500px</span>
-                  </div>
-                </div>
-
-                {/* Пресети */}
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                    Швидкі пресети:
-                  </label>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => {
-                        setAnimationDuration(0);
-                        setScaleFactor(0.5);
-                        setAnimateWhileZooming(false);
-                      }}
-                      className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
-                    >
-                      Без анімації
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAnimationDuration(0.15);
-                        setScaleFactor(0.5);
-                        setAnimateWhileZooming(true);
-                      }}
-                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                    >
-                      Швидка
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAnimationDuration(0.3);
-                        setScaleFactor(0.4);
-                        setAnimateWhileZooming(true);
-                      }}
-                      className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                    >
-                      Плавна
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAnimationDuration(0.5);
-                        setScaleFactor(0.3);
-                        setAnimateWhileZooming(true);
-                      }}
-                      className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
-                    >
-                      Повільна
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <MapContainer
           center={[initialLat, initialLng]}
           zoom={initialZoom}
@@ -1025,13 +810,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             <MapLibreLayer useVectorTiles={vectorTilesEnabled} />
           ) : (
             <>
-              {/* Варіант 1: Чорно-білі тайли від Stamen */}
-              {/* <TileLayer
-                  attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
-                  url="https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png"
-                  maxZoom={20}
-                /> */}
-
               {/* Варіант 2: Стандартні тайли з CSS фільтром grayscale */}
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1044,9 +822,9 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
           <ZoomControl position="topright" />
 
-          {points.map((point) => (
+          {points.map((point, index) => (
             <DynamicMarker
-              key={point.id}
+              key={`marker-${point.id}-${index}`}
               point={point}
               baseZoom={initialZoom}
               onClick={handleMarkerClick}
@@ -1060,8 +838,8 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
           <MapEventHandler
             onMove={handleMapMove}
-            onDragStart={() => setIsDragging(true)}
-            onDragEnd={() => setIsDragging(false)}
+            onDragStart={() => {}}
+            onDragEnd={() => {}}
           />
 
           <MapController
@@ -1182,50 +960,10 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             </div>
           </div>
 
-          {/* Додаткова інформація */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-lg text-gray-800 mb-3">
-              Додаткова інформація
-            </h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>ID точки:</span>
-                <span className="font-mono">{selectedPoint?.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Поточний масштаб:</span>
-                <span>{zoom}x</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Має контент:</span>
-                <span
-                  className={
-                    selectedPoint?.contentFile
-                      ? "text-green-600"
-                      : "text-gray-400"
-                  }
-                >
-                  {selectedPoint?.contentFile ? "Так" : "Ні"}
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* Секція з MD контентом */}
           {selectedPoint?.contentFile && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z"
-                    clipRule="evenodd"
-                  />
-                </svg>
                 Детальний опис
               </h3>
 
