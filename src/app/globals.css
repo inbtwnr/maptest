@@ -45,6 +45,7 @@
 }
 
 :root {
+  --header-height: 4rem;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -213,5 +214,23 @@
 
   .svg-marker-element {
     pointer-events: all !important;
+  }
+
+  /* Стилі для header і контенту з динамічною висотою */
+  .header-height {
+    height: var(--header-height);
+  }
+
+  .content-height {
+    height: calc(100vh - var(--header-height));
+  }
+
+  .sidebar-panel {
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+  }
+
+  .below-header {
+    top: calc(var(--header-height) + 1rem);
   }
 }

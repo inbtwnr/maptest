@@ -683,10 +683,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     }
   };
 
-  const centerMap = () => {
-    setShouldCenter(true);
-  };
-
   const toggleVectorTiles = () => {
     setVectorTilesEnabled(!vectorTilesEnabled);
   };
@@ -704,7 +700,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   if (!isClient) {
     return (
       <div
-        className={`relative flex flex-col h-[calc(100vh-4rem)] ${className} items-center justify-center bg-gray-100`}
+        className={`relative flex flex-col content-height ${className} items-center justify-center bg-gray-100`}
       >
         <div className="text-gray-500">Завантаження карти...</div>
       </div>
@@ -713,13 +709,11 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
   return (
     <>
-      <div
-        className={`relative flex flex-col h-[calc(100vh-4rem)] ${className}`}
-      >
+      <div className={`relative flex flex-col content-height ${className}`}>
         {/* Кнопка бургер-меню для мобільних пристроїв */}
         <button
           onClick={() => setIsBuildingsMenuOpen(!isBuildingsMenuOpen)}
-          className="md:hidden fixed top-20 left-4 z-[1002] p-3 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          className="md:hidden fixed below-header left-4 z-[1002] p-3 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           aria-label="Відкрити меню будівель"
         >
           <svg
@@ -748,7 +742,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
         {/* Панель швидкого доступу до будівель */}
         <div
-          className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200 dark:border-gray-700 z-[1001] transform transition-transform duration-300 ease-in-out overflow-hidden ${
+          className={`fixed left-0 w-80 sidebar-panel bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl border-r border-gray-200 dark:border-gray-700 z-[1001] transform transition-transform duration-300 ease-in-out overflow-hidden ${
             isBuildingsMenuOpen
               ? "translate-x-0"
               : "-translate-x-full md:translate-x-0"
@@ -836,10 +830,10 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
         {/* macOS-style Action Bar - floating with backdrop blur */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-5xl">
-          <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/20 p-3">
-            <div className="flex justify-between items-center gap-4">
+          <div className="backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/20 p-4">
+            <div className="flex justify-between items-center gap-6">
               {/* Координати та статус */}
-              <div className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+              <div className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                 <span className="hidden sm:inline">
                   Довгота: {lng} | Широта: {lat} |{" "}
                 </span>
@@ -847,10 +841,10 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
               </div>
 
               {/* Кнопки керування */}
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={toggleVectorTiles}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm ${
                     vectorTilesEnabled
                       ? "bg-black text-white hover:bg-slate-700 shadow-purple-500/30"
                       : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"

@@ -5,9 +5,9 @@ import { getPagePath } from "@/lib/paths";
 
 const Navigation = () => {
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className="bg-white shadow-sm border-b header-height">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        <div className="flex justify-between items-center h-full">
           <div className="flex items-center">
             <Link
               href={getPagePath("/")}
