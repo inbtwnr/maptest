@@ -10,12 +10,18 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
 import { loadPointContent } from "@/lib/contentLoader";
 import { loadPointsData, type MapPoint } from "@/lib/contentMapping";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import L from "leaflet";
 import "@maplibre/maplibre-gl-leaflet";
+import * as LucideIcons from "lucide-react";
 
 interface LeafletMapBoxProps {
   initialLng?: number;
@@ -496,6 +502,8 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
   const [vectorTilesEnabled, setVectorTilesEnabled] = useState(useVectorTiles);
   const [isBuildingsMenuOpen, setIsBuildingsMenuOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Стани для контролю анімації міток
   const animationDuration = markerAnimationDuration;
@@ -556,6 +564,60 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
       .grayscale-map .leaflet-tile-pane {
         filter: grayscale(100%);
       }
+      /* Swiper custom styles */
+      .gallery-swiper {
+        padding: 0 24px 50px 24px !important;
+      }
+      .gallery-swiper .swiper-slide {
+        padding: 4px;
+      }
+      .gallery-swiper .swiper-button-next,
+      .gallery-swiper .swiper-button-prev {
+        color: #fff;
+        background: rgba(107, 114, 128, 0.85);
+        backdrop-filter: blur(8px);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+      }
+      .gallery-swiper .swiper-button-next:hover,
+      .gallery-swiper .swiper-button-prev:hover {
+        background: rgba(75, 85, 99, 0.95);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transform: scale(1.05);
+      }
+      .gallery-swiper .swiper-button-next:after,
+      .gallery-swiper .swiper-button-prev:after {
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .gallery-swiper .swiper-button-next svg,
+      .gallery-swiper .swiper-button-prev svg {
+        width: 16px;
+        height: 16px;
+      }
+      .gallery-swiper .swiper-button-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .gallery-swiper .swiper-pagination {
+        bottom: 20px !important;
+      }
+      .gallery-swiper .swiper-pagination-bullet {
+        background: #94A3B8;
+        opacity: 0.6;
+        width: 8px;
+        height: 8px;
+        transition: all 0.3s ease;
+      }
+      .gallery-swiper .swiper-pagination-bullet-active {
+        background: #3B82F6;
+        opacity: 1;
+        width: 24px;
+        border-radius: 4px;
+      }
     `;
     document.head.appendChild(style);
 
@@ -564,17 +626,33 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     };
   }, []);
 
-  // Обробка клавіші Escape
+  // Обробка клавіш Escape та стрілок
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isDrawerOpen) {
-        setIsDrawerOpen(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (lightboxOpen) {
+          setLightboxOpen(false);
+        } else if (isDrawerOpen) {
+          setIsDrawerOpen(false);
+        }
+      }
+
+      if (lightboxOpen && selectedPoint?.gallery) {
+        if (event.key === "ArrowLeft" && lightboxIndex > 0) {
+          setLightboxIndex(lightboxIndex - 1);
+        }
+        if (
+          event.key === "ArrowRight" &&
+          lightboxIndex < selectedPoint.gallery.length - 1
+        ) {
+          setLightboxIndex(lightboxIndex + 1);
+        }
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isDrawerOpen]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isDrawerOpen, lightboxOpen, lightboxIndex, selectedPoint]);
 
   const handleMapMove = (newLat: number, newLng: number, newZoom: number) => {
     setLng(parseFloat(newLng.toFixed(4)));
@@ -586,7 +664,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
     setSelectedPoint(point);
     setIsDrawerOpen(true);
 
-    if (point.contentFile) {
+    if (point.article) {
       setIsContentLoading(true);
       setPointContent(null);
 
@@ -785,13 +863,6 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
                 >
                   {vectorTilesEnabled ? "🗺️ Вектор" : "🖼️ Растр"}
                 </button>
-                <button
-                  onClick={centerMap}
-                  className="px-3 py-1.5 bg-black text-white rounded-lg text-xs font-medium hover:bg-slate-700 transition-all shadow-sm shadow-green-500/30"
-                  title="Центрувати карту"
-                >
-                  🎯 Центр
-                </button>
               </div>
             </div>
           </div>
@@ -891,18 +962,115 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
 
         {/* Контент панелі */}
         <div className="p-6 overflow-y-auto h-full pb-24">
-          {/* Зображення будівлі */}
+          {/* Основне зображення об'єкту */}
           {selectedPoint?.image && (
             <div className="mb-6">
+              <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Головне зображення
+              </h3>
               <div className="flex justify-center">
                 <div className="relative w-full h-100 bg-gray-50 rounded-lg shadow-sm transition-all group cursor-pointer">
                   <Image
                     src={selectedPoint.image}
                     alt={selectedPoint.title}
                     fill
-                    className="object-contain p-6 transition-transform duration-300 group-hover:scale-115"
+                    className="object-contain p-6 transition-transform duration-300 group-hover:scale-110"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Галерея додаткових зображень - Swiper */}
+          {selectedPoint?.gallery && selectedPoint.gallery.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Галерея зображень
+                </div>
+                <span className="text-sm text-gray-500 font-normal">
+                  {selectedPoint.gallery.length} фото
+                </span>
+              </h3>
+
+              {/* Swiper слайдер */}
+              <div className="-mx-6">
+                <Swiper
+                  modules={[Navigation, Pagination]}
+                  spaceBetween={12}
+                  slidesPerView="auto"
+                  navigation
+                  pagination={{ clickable: true }}
+                  mousewheel={{ forceToAxis: true }}
+                  freeMode={true}
+                  className="gallery-swiper"
+                >
+                  {selectedPoint.gallery.map((img: string, index: number) => (
+                    <SwiperSlide key={`gallery-${index}`} className="!w-64">
+                      <button
+                        onClick={() => {
+                          setLightboxOpen(true);
+                          setLightboxIndex(index);
+                        }}
+                        className="relative w-64 h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden group cursor-pointer hover:ring-4 hover:ring-blue-400/50 hover:shadow-xl transition-all duration-300 block"
+                        aria-label={`Відкрити зображення ${index + 1} з ${
+                          selectedPoint.gallery?.length || 0
+                        }`}
+                      >
+                        <Image
+                          src={img}
+                          alt={`${selectedPoint.title} - фото ${index + 1}`}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        {/* Номер фото */}
+                        <div className="absolute top-3 right-3 bg-gradient-to-br from-black/80 to-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg">
+                          {index + 1}/{selectedPoint.gallery?.length || 0}
+                        </div>
+                        {/* Overlay при hover */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <div className="bg-white/90 backdrop-blur-sm rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                            <svg
+                              className="w-8 h-8 text-blue-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      </button>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
               </div>
             </div>
           )}
@@ -944,7 +1112,7 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
               </svg>
               Координати
             </h3>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="text-sm font-medium text-blue-800">Довгота</div>
                 <div className="text-lg font-mono text-blue-900">
@@ -960,8 +1128,83 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
             </div>
           </div>
 
+          {/* Секція з посиланнями */}
+          {selectedPoint?.links && selectedPoint.links.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Посилання
+              </h3>
+              <div className="space-y-2">
+                {selectedPoint.links.map((link, index) => {
+                  // Отримуємо компонент іконки з lucide-react
+                  const iconName =
+                    link.icon.charAt(0).toUpperCase() + link.icon.slice(1);
+                  const IconComponent = (
+                    LucideIcons as unknown as Record<
+                      string,
+                      React.ComponentType<{ className?: string }>
+                    >
+                  )[iconName];
+
+                  return (
+                    <a
+                      key={index}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors group"
+                    >
+                      {IconComponent ? (
+                        <IconComponent className="w-5 h-5 text-gray-600 group-hover:text-blue-600 flex-shrink-0" />
+                      ) : (
+                        <svg
+                          className="w-5 h-5 text-gray-600 group-hover:text-blue-600 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      <span className="text-gray-700 group-hover:text-blue-700 flex-1">
+                        {link.text}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Секція з MD контентом */}
-          {selectedPoint?.contentFile && (
+          {selectedPoint?.article && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 Детальний опис
@@ -992,6 +1235,113 @@ const LeafletMapBox: React.FC<LeafletMapBoxProps> = ({
           className="fixed inset-0 bg-black/50 z-[9999]"
           onClick={() => setIsDrawerOpen(false)}
         />
+      )}
+
+      {/* Lightbox для галереї */}
+      {lightboxOpen && selectedPoint?.gallery && (
+        <div
+          className="fixed inset-0 bg-black/98 backdrop-blur-sm z-[20000] flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          {/* Кнопка закрити */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-6 right-6 p-4 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full transition-all duration-300 z-10 group hover:scale-110"
+            aria-label="Закрити lightbox"
+          >
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+
+          {/* Кнопка "Попереднє" */}
+          {lightboxIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex(lightboxIndex - 1);
+              }}
+              className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full transition-all duration-300 z-10 hover:scale-110"
+              aria-label="Попереднє зображення"
+            >
+              <svg
+                className="w-7 h-7 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          )}
+
+          {/* Зображення */}
+          <div
+            className="relative w-full h-full flex items-center justify-center p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative w-full h-full max-w-7xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl">
+              <Image
+                src={selectedPoint.gallery[lightboxIndex]}
+                alt={`${selectedPoint.title} - фото ${lightboxIndex + 1}`}
+                fill
+                className="object-contain"
+                sizes="100vw"
+                priority
+              />
+            </div>
+            {/* Лічильник + назва */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+              <div className="bg-black/80 backdrop-blur-md text-white px-6 py-3 rounded-full text-base font-bold shadow-xl">
+                {lightboxIndex + 1} / {selectedPoint.gallery.length}
+              </div>
+              <div className="bg-black/70 backdrop-blur-md text-white px-5 py-2 rounded-full text-sm font-medium shadow-lg max-w-md text-center">
+                {selectedPoint.title}
+              </div>
+            </div>
+          </div>
+
+          {/* Кнопка "Наступне" */}
+          {lightboxIndex < selectedPoint.gallery.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex(lightboxIndex + 1);
+              }}
+              className="absolute right-6 top-1/2 -translate-y-1/2 p-4 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full transition-all duration-300 z-10 hover:scale-110"
+              aria-label="Наступне зображення"
+            >
+              <svg
+                className="w-7 h-7 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       )}
     </>
   );

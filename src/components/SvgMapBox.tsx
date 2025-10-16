@@ -9,7 +9,17 @@ import {
   Value,
   Tool,
 } from "react-svg-pan-zoom";
+import ImageGallery from "react-image-gallery";
+import "react-image-gallery/styles/css/image-gallery.css";
 import { loadPointContent } from "@/lib/contentLoader";
+import { getPublicPath } from "@/lib/paths";
+import * as LucideIcons from "lucide-react";
+
+interface SvgMarkerLink {
+  icon: string;
+  text: string;
+  url: string;
+}
 
 interface SvgMarker {
   id: string;
@@ -19,7 +29,9 @@ interface SvgMarker {
   description?: string;
   address?: string;
   image?: string;
-  contentFile?: string;
+  gallery?: string[];
+  article?: string;
+  links?: SvgMarkerLink[];
 }
 
 interface SvgMapBoxProps {
@@ -139,7 +151,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
       setIsDrawerOpen(true);
 
       // Load content for marker if it exists
-      if (marker.contentFile) {
+      if (marker.article) {
         setIsContentLoading(true);
         setMarkerContent(null);
 
@@ -429,7 +441,7 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
             <svg width={3039} height={2179} viewBox="0 0 3039 2179">
               {/* Base SVG Map from file */}
               <image
-                href="/uzhhorod-map.svg"
+                href={getPublicPath("uzhhorod-map.svg")}
                 x="0"
                 y="0"
                 width="3039"
@@ -451,7 +463,11 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                   {/* Building image if available */}
                   {marker.image && (
                     <image
-                      href={marker.image}
+                      href={getPublicPath(
+                        marker.image.startsWith("/")
+                          ? marker.image.slice(1)
+                          : marker.image
+                      )}
                       x={marker.x - 90}
                       y={marker.y - 170}
                       width="180"
@@ -537,8 +553,48 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto h-full pb-24">
-          {/* Image if available */}
-          {selectedMarker?.image && (
+          {/* Gallery if available */}
+          {selectedMarker?.gallery && selectedMarker.gallery.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Галерея зображень
+              </h3>
+              <div className="rounded-lg overflow-hidden shadow-md">
+                <ImageGallery
+                  items={selectedMarker.gallery.map((img) => ({
+                    original: getPublicPath(
+                      img.startsWith("/") ? img.slice(1) : img
+                    ),
+                    thumbnail: getPublicPath(
+                      img.startsWith("/") ? img.slice(1) : img
+                    ),
+                    originalAlt: selectedMarker.title,
+                    thumbnailAlt: selectedMarker.title,
+                  }))}
+                  showPlayButton={false}
+                  showFullscreenButton={true}
+                  showThumbnails={true}
+                  showNav={true}
+                  slideDuration={450}
+                  slideInterval={3000}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Fallback to single image if no gallery */}
+          {!selectedMarker?.gallery && selectedMarker?.image && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 <svg
@@ -557,7 +613,11 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
               <div className="flex justify-center">
                 <div className="relative w-full h-80 bg-white rounded-lg shadow-md border-2 border-gray-200">
                   <Image
-                    src={selectedMarker.image}
+                    src={getPublicPath(
+                      selectedMarker.image.startsWith("/")
+                        ? selectedMarker.image.slice(1)
+                        : selectedMarker.image
+                    )}
                     alt={selectedMarker.title}
                     fill
                     className="object-contain p-8"
@@ -637,19 +697,17 @@ const SvgMapBox: React.FC<SvgMapBoxProps> = ({
                 <span>Має контент:</span>
                 <span
                   className={
-                    selectedMarker?.contentFile
-                      ? "text-green-600"
-                      : "text-gray-400"
+                    selectedMarker?.article ? "text-green-600" : "text-gray-400"
                   }
                 >
-                  {selectedMarker?.contentFile ? "Так" : "Ні"}
+                  {selectedMarker?.article ? "Так" : "Ні"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Content section */}
-          {selectedMarker?.contentFile && (
+          {selectedMarker?.article && (
             <div className="mb-6">
               <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
                 <svg

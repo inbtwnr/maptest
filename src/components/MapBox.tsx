@@ -4,6 +4,8 @@ import React, { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import ImageGallery from "react-image-gallery";
+import "react-image-gallery/styles/css/image-gallery.css";
 import { loadPointContent } from "@/lib/contentLoader";
 import { loadPointsData, type MapPoint } from "@/lib/contentMapping";
 // Видаляємо імпорт drawer, створимо власну бокову панель
@@ -304,8 +306,44 @@ const MapBox: React.FC<MapBoxProps> = ({
 
         {/* Контент панелі */}
         <div className="p-6 overflow-y-auto h-full pb-24">
-          {/* Зображення будівлі */}
-          {selectedPoint?.image && (
+          {/* Галерея зображень */}
+          {selectedPoint?.gallery && selectedPoint.gallery.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Галерея зображень
+              </h3>
+              <div className="rounded-lg overflow-hidden shadow-md">
+                <ImageGallery
+                  items={selectedPoint.gallery.map((img: string) => ({
+                    original: img,
+                    thumbnail: img,
+                    originalAlt: selectedPoint.title,
+                    thumbnailAlt: selectedPoint.title,
+                  }))}
+                  showPlayButton={false}
+                  showFullscreenButton={true}
+                  showThumbnails={true}
+                  showNav={true}
+                  slideDuration={450}
+                  slideInterval={3000}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Fallback to single image if no gallery */}
+          {!selectedPoint?.gallery && selectedPoint?.image && (
             <div className="mb-6">
               <div className="flex justify-center">
                 <div className="relative w-full h-100 bg-gray-50 rounded-lg shadow-sm transition-all group cursor-pointer">

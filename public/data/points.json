@@ -7,8 +7,8 @@
       "title": "Ректорат УжНУ",
       "description": "Центральна будівля Ужгородського національного університету",
       "address": "пл. Народна, 3, Ужгород",
-      "image": "/rectorat.svg",
-      "contentFile": "/articles/uzhnu-rectorat.md"
+      "image": "rectorat.svg",
+      "gallery": ["rectorat.svg", "rectorat.svg", "rectorat.svg"]
     },
     {
       "id": "5",
@@ -17,8 +17,7 @@
       "title": "Головна будівля УжНУ на Бамі",
       "description": "Навчальний корпус УжНУ на Бульварі Академіка Мірослава",
       "address": "бул. Академіка Мірослава, Ужгород",
-      "image": "/bam.svg",
-      "contentFile": "/articles/uzhnu-bam.md"
+      "image": "bam.svg"
     },
     {
       "id": "6",
@@ -27,28 +26,24 @@
       "title": "Фізичний факультет УжНУ",
       "description": "Фізичний факультет Ужгородського національного університету",
       "address": "вул. Волошина, 54, Ужгород",
-      "image": "/fizfac.svg",
-      "contentFile": "/articles/fizfac-uzhnu.md"
-    },
-    {
-      "id": "6",
-      "lng": 22.30318262328638,
-      "lat": 48.620723761307296,
-      "title": "Фізичний факультет УжНУ",
-      "description": "Фізичний факультет Ужгородського національного університету",
-      "address": "вул. Волошина, 54, Ужгород",
-      "image": "/fizfac.svg",
-      "contentFile": "/articles/fizfac-uzhnu.md"
-    },
-    {
-      "id": "6",
-      "lng": 22.30318262328638,
-      "lat": 48.620723761307296,
-      "title": "Фізичний факультет УжНУ",
-      "description": "Фізичний факультет Ужгородського національного університету",
-      "address": "вул. Волошина, 54, Ужгород",
-      "image": "/fizfac.svg",
-      "contentFile": "/articles/fizfac-uzhnu.md"
+      "image": "fizfac.svg",
+      "article": "articles/fizfac-uzhnu.md",
+      "gallery": [
+        "fizfac.svg",
+        "fizfac.svg",
+        "fizfac.svg",
+        "fizfac.svg",
+        "fizfac.svg",
+        "fizfac.svg",
+        "fizfac.svg"
+      ],
+      "links": [
+        {
+          "icon": "clock",
+          "text": "Офіційний сайт фізичного факультету",
+          "url": "https://phys.uzhnu.edu.ua/"
+        }
+      ]
     }
   ]
 }

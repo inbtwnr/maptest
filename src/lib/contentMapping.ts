@@ -1,3 +1,12 @@
+import { getPublicPath } from "./paths";
+
+// Інтерфейс для посилання
+export interface MapPointLink {
+  icon: string;
+  text: string;
+  url: string;
+}
+
 // Інтерфейс для точки на карті
 export interface MapPoint {
   id: string;
@@ -7,7 +16,9 @@ export interface MapPoint {
   description?: string;
   address?: string;
   image?: string;
-  contentFile?: string;
+  gallery?: string[];
+  article?: string;
+  links?: MapPointLink[];
 }
 
 // Інтерфейс для JSON файлу з точками
@@ -27,7 +38,7 @@ export async function loadPointsData(): Promise<PointsData> {
   }
 
   try {
-    const response = await fetch("/data/points.json");
+    const response = await fetch(getPublicPath("data/points.json"));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -52,7 +63,7 @@ export const getContentPath = async (
 ): Promise<string | null> => {
   const data = await loadPointsData();
   const point = data.points.find((p) => p.id === pointId);
-  return point?.contentFile || null;
+  return point?.article || null;
 };
 
 // Функція для отримання шляху до зображення за ID точки
@@ -66,7 +77,7 @@ export const getImagePath = async (pointId: string): Promise<string | null> => {
 export const hasContent = async (pointId: string): Promise<boolean> => {
   const data = await loadPointsData();
   const point = data.points.find((p) => p.id === pointId);
-  return !!point?.contentFile;
+  return !!point?.article;
 };
 
 // Функція для перевірки чи існує зображення для точки
